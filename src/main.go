@@ -16,6 +16,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
 	"time"
@@ -47,6 +48,7 @@ func registerIndex(r *gin.Engine) {
 func registerJsonRoutes(r *gin.Engine) {
 	r.GET("/ping", jsonRouteWrapper(getPing))
 	r.GET("/5_sec_expires", jsonRouteWrapper(_5SecExpires))
+	r.GET("/pragma", jsonRouteWrapper(_pragmaNoCache))
 }
 
 func jsonRouteWrapper(handler jsonRouterHandler) gin.HandlerFunc {
@@ -63,15 +65,32 @@ func getPing(_ *gin.Context) (int, json) {
 }
 
 // _5SecExpires: Creates an JSON with 5 seconds of expiry using the `Expires`
-// response header. This header was available since before HTTP-1.1
+// response header. This header was available since before HTTP-1.1.
 func _5SecExpires(ctx *gin.Context) (int, json) {
 	expires := getTime(5)
 	ctx.Header("Expires", expires)
 
 	return http.StatusOK, json{
-		"message": "Using the `Expires` header setting the expiry of this JSON data blob to 5 seconds",
+		"message": "Using the `Expires` header setting the expiry of this JSON data blob to 5 seconds.You can see the `random` value change if you request for it after 5 seconds.",
+		"random":  getRandomNumber(),
 		"headers": json{
 			"expires": expires,
+		},
+	}
+}
+
+// _pragmaNoCache: Creates a JSON with non cacheable header using the `Pragma`
+// response header. This header is pre HTTP-1.1 and is deprecated. Exists only
+// for backward compatibility.
+func _pragmaNoCache(ctx *gin.Context) (int, json) {
+	pragma := "no-cache"
+	ctx.Header("Pragma", pragma)
+
+	return http.StatusOK, json{
+		"message": "Using the `Pragma` header to set caching as disabled.You can see the `random` value change every time you make a request",
+		"random":  getRandomNumber(),
+		"headers": json{
+			"pragma": pragma,
 		},
 	}
 }
@@ -79,4 +98,9 @@ func _5SecExpires(ctx *gin.Context) (int, json) {
 func getTime(addSec int) string {
 	now := time.Now().Add(time.Second * time.Duration(addSec)).UTC()
 	return now.Format(time.RFC1123)
+}
+
+func getRandomNumber() int {
+	randInt := rand.Intn(200)
+	return randInt
 }

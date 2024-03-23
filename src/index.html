@@ -2,27 +2,133 @@
 <html>
 
 <head>
+  <style>
+    .resp_block {
+      margin-top: 1em;
+      border: 1px solid blue;
+      overflow: auto;
+      text-overflow: clip;
+      white-space: nowrap;
+    }
+  </style>
+
   <script>
     let optionDom = undefined;
     let responseDom = undefined;
+    let actBtn = undefined;
+    let stratUtlsDom = undefined;
 
     window.addEventListener('DOMContentLoaded', function () {
       optionDom = document.getElementById('cache-strat-selector')
       responseDom = document.getElementById('response_display_box')
+      actBtn = document.getElementById('act')
+      stratUtlsDom = document.getElementById('strat-utils')
+
+      optSelected()
     })
 
 
     async function fetchAndDisplay() {
-      if (!optionDom || !responseDom) {
+      if (!optionDom || !responseDom || !act) {
         alert("Looks like your document isn't ready. How did you even trigger this??")
         return
       }
+      optActed()
+      act.disabled = true
 
       const strategy = optionDom.value
       const response = await fetch(`/${strategy}`)
       const body = await response.json()
 
       responseDom.innerHTML = JSON.stringify(body, undefined, 2)
+      act.disabled = false
+    }
+
+    function optSelected() {
+      const opt = optionDom.value
+
+      switch (opt) {
+        case '5_sec_expires':
+          setup5SecExpires();
+          break;
+        case 'pragma':
+          setupPragma();
+          break;
+      }
+    }
+
+    function optActed() {
+      const opt = optionDom.value
+
+      switch (opt) {
+        case '5_sec_expires':
+          act5SecExpires();
+          break;
+      }
+    }
+
+    function clearStratUtils() {
+      if (!stratUtlsDom) {
+        alert("How are you even clearing the strategy utilies without the dom??")
+        return;
+      }
+      stratUtlsDom.innerHTML = ""
+    }
+
+    function addCountdownTimer(countdown, restart) {
+      if (actBtn.disabled) {
+        alert("Bro, how did you even call this when the act button is disabled??")
+        return;
+      }
+
+      const timerId = "cd-timer"
+      let cdDom = document.getElementById(timerId)
+
+      if (cdDom && !restart) {
+        return;
+      }
+
+      if (cdDom && restart) {
+        clearTimeout(cdDom.getAttribute('ref'))
+        cdDom.parentNode.removeChild(cdDom);
+        cdDom = undefined;
+      }
+
+      if (!cdDom) {
+        const cdDom = document.createElement('span')
+        cdDom.id = timerId
+        cdDom.innerHTML = `Countdown: ${countdown}`
+        stratUtlsDom.appendChild(cdDom)
+      }
+
+      const update = function (updatedCD) {
+        let dom = document.getElementById(timerId)
+        if (updatedCD === 0) {
+          clearTimeout(dom.getAttribute('ref'))
+          dom.parentNode.removeChild(dom)
+          return;
+        }
+
+        dom.innerHTML = `Countdown: ${updatedCD}`
+        let nextUpdate = updatedCD - 1;
+        const timeoutID = setTimeout(function () {update(nextUpdate)}, 1000)
+        dom.setAttribute('ref', timeoutID);
+      }
+
+      const timeoutID = setTimeout(function () {update(countdown - 1)}, 1000)
+      document.getElementById(timerId).setAttribute('ref', timeoutID);
+    }
+
+    function setup5SecExpires() {
+      clearStratUtils()
+    }
+
+    function act5SecExpires() {
+      addCountdownTimer(5)
+    }
+
+    function setupPragma() {
+      clearStratUtils()
     }
   </script>
 </head>
@@ -30,13 +136,16 @@
 <body>
   <div data-testid="Strategy_Selector">
     <label for="strategy">Caching strategy: </label>
-    <select for="strategy" id="cache-strat-selector">
-      <option value="5_sec_expires">5 Sec Expires Only</option>
+    <select for="strategy" id="cache-strat-selector" onchange="optSelected()">
+      <option value="5_sec_expires">Expires: 5 sec from now</option>
+      <option value="pragma">Pragma: no-cache</option>
     </select>
-    <button type="button" onclick="fetchAndDisplay()">Act</button>
+    <button id="act" type="button" onclick="fetchAndDisplay()">Act</button>
+    <br />
+    <div id="strat-utils"></div>
   </div>
 
-  <div data-testid="Respons_Display" style="border: 1px solid blue;margin-top: 1em">
+  <div data-testid="Respons_Display" class="resp_block">
     <pre id="json"><code id="response_display_box"></code></pre>
   </div>
 </body>
