@@ -14,11 +14,11 @@ There are 3 kinds of caching headers
 3. last-modified
 4. if-modified-since
 
-#### expires
+#### 1.1 expires
 The value for the `expires` header is the absolute expiry date for the data. 
 
 Example:
-```json
+```
 Expires: Sat, 23 Mar 2024 12:35:58 GMT
 ```
 
