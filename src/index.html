@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <script>
+    let optionDom = undefined;
+    let responseDom = undefined;
+
+    window.addEventListener('DOMContentLoaded', function () {
+      optionDom = document.getElementById('cache-strat-selector')
+      responseDom = document.getElementById('response_display_box')
+    })
+
+
+    async function fetchAndDisplay() {
+      if (!optionDom || !responseDom) {
+        alert("Looks like your document isn't ready. How did you even trigger this??")
+        return
+      }
+
+      const strategy = optionDom.value
+      const response = await fetch(`/${strategy}`)
+      const body = await response.json()
+
+      responseDom.innerHTML = JSON.stringify(body, undefined, 2)
+    }
+  </script>
+</head>
+
+<body>
+  <div data-testid="Strategy_Selector">
+    <label for="strategy">Caching strategy: </label>
+    <select for="strategy" id="cache-strat-selector">
+      <option value="5_sec_expires">5 Sec Expires Only</option>
+    </select>
+    <button type="button" onclick="fetchAndDisplay()">Act</button>
+  </div>
+
+  <div data-testid="Respons_Display" style="border: 1px solid blue;margin-top: 1em">
+    <pre id="json"><code id="response_display_box"></code></pre>
+  </div>
+</body>
+
+</html>
