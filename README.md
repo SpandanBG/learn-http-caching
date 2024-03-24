@@ -76,8 +76,9 @@ Possible values:
 > Note: When both `max-age` and `s-max-age` is present, it will take the first for client side caching and the latter for the proxies caching
 
 > Available strategies to test: (All are private caching since, I didn't create any proxies for the shared caching)
+
     1. Cache Control - 5 seconds
     2. Cache Control - no-store
     3. Cache Control - no-cache (controlled by query param for change of data, thus forcing revalidation logic at backend to return new value)
     4. Cache Control - 5 sec must revalidate (controlled by the same as 3, but only goes for revalidation after it is stale.)
-  All revalidate are done using HTTP status code 200/304.
+>  All revalidate are done using HTTP status code 200/304.
