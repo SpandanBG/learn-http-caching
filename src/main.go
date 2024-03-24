@@ -32,6 +32,8 @@ type jsonRouterHandler func(*gin.Context) (int, json)
 func main() {
 	fmt.Println("Starting server at port: ", os.Getenv(PortEnv))
 
+	go _itemModify()
+
 	r := gin.Default()
 	registerIndex(r)
 	registerJsonRoutes(r)
@@ -53,6 +55,7 @@ func registerJsonRoutes(r *gin.Engine) {
 	r.GET("/cache_control_no_store", jsonRouteWrapper(_cacheControlNoStore))
 	r.GET("/cache_control_no_cache", jsonRouteWrapper(_cacheControlNoCache))
 	r.GET("/cache_control_must_revalidate", jsonRouteWrapper(_cacheControlMustRevalidate))
+	r.GET("/cache_control_last_modified", jsonRouteWrapper(_cacheControlLastModfied))
 }
 
 func jsonRouteWrapper(handler jsonRouterHandler) gin.HandlerFunc {
@@ -144,7 +147,7 @@ func _cacheControlNoCache(ctx *gin.Context) (int, json) {
 	ctx.Header("ETag", token)
 
 	return http.StatusOK, json{
-		"message": "Using the `cache-control` header to ensure cached value is revalidated with `ETag`. You can see the `random` value change if the `Token` changes.",
+		"message": "Using the `cache-control` and `etag` headers to ensure cached value is revalidated with `ETag`. You can see the `random` value change if the `Token` changes.",
 		"token":   token,
 		"random":  getRandomNumber(),
 		"headers": json{
@@ -157,9 +160,10 @@ func _cacheControlNoCache(ctx *gin.Context) (int, json) {
 var _cacheControlMustRevalidateData string
 
 // _cacheControlMustRevalidate: Creates a JSON with `cache-control: max-age=5,
-// must-revalidate, private` response header. When client calls with no network,
-// the cache will not be served to the user. The response will be different if the
-// `Token` query param is different from the last passed value.
+// must-revalidate, private` and an `ETag: ${Token}`response header. When client
+// calls with no network, the cache will not be served to the user. The response
+// will be different if the `Token` query param is different from the last passed
+// value.
 func _cacheControlMustRevalidate(ctx *gin.Context) (int, json) {
 	token := ctx.Query("Token")
 
@@ -173,13 +177,49 @@ func _cacheControlMustRevalidate(ctx *gin.Context) (int, json) {
 	ctx.Header("ETag", token)
 
 	return http.StatusOK, json{
-		"message": "Using the `cache-control` header to ensure cached value is revalidated after value is stale and checks `ETag`. This ensures to revalidate when the client has nextwork after the cache is stale. You can see the `random` value change if `Token` changes.", // Server will clear `Token` after 5 seconds",
+		"message": "Using the `cache-control` and `etag` headers to ensure cached value is revalidated after value is stale and checks `ETag`. This ensures to revalidate when the client has nextwork after the cache is stale. You can see the `random` value change if `Token` changes.",
 		"token":   token,
 		"random":  getRandomNumber(),
 		"headers": json{
 			"Cache-Control": "max-age=5, must-revalidate, private",
 			"ETag":          token,
 		},
+	}
+}
+
+// _cacheControlLastModfied: Cretaes a JSON with with `cache-control: max-age=5,
+// must-revalidate, private` and an `Last-Modified: XYZ` response headers. When
+// the client requests with the `if-modified-since` header, it checks with the
+// Item's last modified time. If it is different, it will return the new data,
+// otherwise return 304. The Item will keep changing every 10 seconds since the
+// start of the server
+func _cacheControlLastModfied(ctx *gin.Context) (int, json) {
+	lastModified := ctx.GetHeader("if-modified-since")
+	if lastModified == _itemLastModified {
+		return http.StatusNotModified, nil
+	}
+
+	ctx.Header("Cache-Control", "max-age=5, must-revalidate, private")
+	ctx.Header("Last-Modified", _itemLastModified)
+
+	return http.StatusOK, json{
+		"message": "Using the `cache-control` and `last-modified` response header for caching. The random number will keep changing after 10 seconds since the start of the server. However the client will only revalidate after 5 seconds when local cache is stale.",
+		"random":  _item,
+		"headers": json{
+			"Cache-Control": "max-age=5, must-revalidate, private",
+			"Last-Modified": _itemLastModified,
+		},
+	}
+}
+
+var _item int
+var _itemLastModified string
+
+func _itemModify() {
+	for {
+		time.Sleep(10 * time.Second)
+		_item = getRandomNumber()
+		_itemLastModified = getTime(0)
 	}
 }
 
