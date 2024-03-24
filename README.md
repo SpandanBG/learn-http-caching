@@ -28,7 +28,8 @@ There are 3 kinds of caching headers
 
 ---
 
-#### 1.1 expires
+1.1 expires
+===
 Present before HTTP-1.1, the value for the `expires` header is the absolute expiry date for the data. 
 
 Example:
@@ -42,7 +43,8 @@ The rules for this header:
 
 > Select Caching Strategy `Expires: 5 sec from now` to view the result.
 
-### 1.2 pragma
+1.2 pragma
+===
 Pre HTTP-1.1 header. The only possible value for this is `no-cache`. This header is currently depricated. This was used to prevent caching. Currenly only present for backward compatibility.
 
 Example:
@@ -57,7 +59,8 @@ The rules for this header:
 
 > Select Caching Strategy `Pragma: no-cache` to view the result.
 
-### 1.3 cache-control
+1.3 cache-control
+===
 This was introduced in HTTP-1.1. This is a multi-value/directive header.
 
 Possible values:
