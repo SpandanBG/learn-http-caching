@@ -33,26 +33,32 @@
         alert("Looks like your document isn't ready. How did you even trigger this??")
         return
       }
+      responseDom.innerHTML = ""
       optActed()
       act.disabled = true
 
-      const strategy = optionDom.value
-      const response = await fetch(`/${strategy}`)
-      const body = await response.json()
-
-      responseDom.innerHTML = JSON.stringify(body, undefined, 2)
-      act.disabled = false
+      try {
+        const strategy = optionDom.value
+        const stratData = getUtilsInputData()
+        const queryParams = new URLSearchParams(stratData)
+        const response = await fetch(`/${strategy}?${queryParams}`)
+        const body = await response.json()
+        responseDom.innerHTML = JSON.stringify(body, undefined, 2)
+      } catch (e) {
+        alert("Error at calling strategy: ", strategy, e)
+      } finally {
+        act.disabled = false
+      }
     }
 
     function optSelected() {
       const opt = optionDom.value
+      clearStratUtils()
 
       switch (opt) {
-        case '5_sec_expires':
-          setup5SecExpires();
-          break;
-        case 'pragma':
-          setupPragma();
+        case 'cache_control_no_cache':
+        case 'cache_control_must_revalidate':
+          addQueryParamForm("Token")
           break;
       }
     }
@@ -62,9 +68,25 @@
 
       switch (opt) {
         case '5_sec_expires':
-          act5SecExpires();
+        case 'cache_control_5_sec':
+          addCountdownTimer(5)
+          break;
+        case 'cache_control_must_revalidate':
+          const dom = document.getElementById('query-Token-id')
+          const lastRead = dom.getAttribute("last-read")
+          const current = dom.value
+          dom.setAttribute("last-read", current)
+          addCountdownTimer(5, lastRead != current)
           break;
       }
+    }
+
+    function getUtilsInputData() {
+      const query = {}
+      stratUtlsDom.querySelectorAll("input").forEach((inpDom) => {
+        query[inpDom.getAttribute("key")] = inpDom.value
+      })
+      return query
     }
 
     function clearStratUtils() {
@@ -119,16 +141,18 @@
       document.getElementById(timerId).setAttribute('ref', timeoutID);
     }
 
-    function setup5SecExpires() {
-      clearStratUtils()
-    }
+    function addQueryParamForm(key) {
+      const formFieldId = `query-${key}-id`
+      let dom = document.getElementById(formFieldId)
 
-    function act5SecExpires() {
-      addCountdownTimer(5)
-    }
-
-    function setupPragma() {
-      clearStratUtils()
+      if (!dom) {
+        dom = document.createElement('input')
+        dom.type = "text"
+        dom.id = formFieldId
+        dom.placeholder = key
+        dom.setAttribute('key', key)
+        stratUtlsDom.appendChild(dom)
+      }
     }
   </script>
 </head>
@@ -139,6 +163,10 @@
     <select for="strategy" id="cache-strat-selector" onchange="optSelected()">
       <option value="5_sec_expires">Expires: 5 sec from now</option>
       <option value="pragma">Pragma: no-cache</option>
+      <option value="cache_control_5_sec">Cache-Control: max-age=5</option>
+      <option value="cache_control_no_store">Cache-Control: no-store</option>
+      <option value="cache_control_no_cache">Cache-Control: no-cache | ETag: ${Token}</option>
+      <option value="cache_control_must_revalidate">Cache-Control: max-age=5, must-revalidate | ETag; ${Token}</option>
     </select>
     <button id="act" type="button" onclick="fetchAndDisplay()">Act</button>
     <br />

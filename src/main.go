@@ -49,6 +49,10 @@ func registerJsonRoutes(r *gin.Engine) {
 	r.GET("/ping", jsonRouteWrapper(getPing))
 	r.GET("/5_sec_expires", jsonRouteWrapper(_5SecExpires))
 	r.GET("/pragma", jsonRouteWrapper(_pragmaNoCache))
+	r.GET("/cache_control_5_sec", jsonRouteWrapper(_cacheControl5Sec))
+	r.GET("/cache_control_no_store", jsonRouteWrapper(_cacheControlNoStore))
+	r.GET("/cache_control_no_cache", jsonRouteWrapper(_cacheControlNoCache))
+	r.GET("/cache_control_must_revalidate", jsonRouteWrapper(_cacheControlMustRevalidate))
 }
 
 func jsonRouteWrapper(handler jsonRouterHandler) gin.HandlerFunc {
@@ -91,6 +95,90 @@ func _pragmaNoCache(ctx *gin.Context) (int, json) {
 		"random":  getRandomNumber(),
 		"headers": json{
 			"pragma": pragma,
+		},
+	}
+}
+
+// _cacheControl5Sec: Creates a JSON with a `cache-content: max-age=5` response
+// header.
+func _cacheControl5Sec(ctx *gin.Context) (int, json) {
+	ctx.Header("Cache-Control", "max-age=5")
+
+	return http.StatusOK, json{
+		"message": "Using the `cache-control` header to set caching for 5 seconds. You can see the `random` value change if you request for it after 5 seconds.",
+		"random":  getRandomNumber(),
+		"headers": json{
+			"Cache-Control": "max-age=5",
+		},
+	}
+}
+
+// _cacheControlNoStore: Creates a JSON with `cache-control: no-store` response
+// header which make the client not cache the content
+func _cacheControlNoStore(ctx *gin.Context) (int, json) {
+	ctx.Header("Cache-Control", "no-store")
+
+	return http.StatusOK, json{
+		"message": "Using the `cache-control` header to ensure no caching. You can see the `random` value change everytime.",
+		"random":  getRandomNumber(),
+		"headers": json{
+			"cache-control": "no-store",
+		},
+	}
+}
+
+var _cacheControlNoCacheData string
+
+// _cacheControlNoCache: Creates a JSON with `cache-control: no-cache` and an
+// `ETag: ${Token}` response header. The response will be different if the
+// `Token` query param is different from the last passed value.
+func _cacheControlNoCache(ctx *gin.Context) (int, json) {
+	token := ctx.Query("Token")
+
+	if token == _cacheControlNoCacheData {
+		return http.StatusNotModified, nil
+	}
+
+	_cacheControlNoCacheData = token
+	ctx.Header("Cache-Control", "no-cache")
+	ctx.Header("ETag", token)
+
+	return http.StatusOK, json{
+		"message": "Using the `cache-control` header to ensure cached value is revalidated with `ETag`. You can see the `random` value change if the `Token` changes.",
+		"token":   token,
+		"random":  getRandomNumber(),
+		"headers": json{
+			"Cache-Control": "no-cache",
+			"ETag":          token,
+		},
+	}
+}
+
+var _cacheControlMustRevalidateData string
+
+// _cacheControlMustRevalidate: Creates a JSON with `cache-control: max-age=5,
+// must-revalidate, private` response header. When client calls with no network,
+// the cache will not be served to the user. The response will be different if the
+// `Token` query param is different from the last passed value.
+func _cacheControlMustRevalidate(ctx *gin.Context) (int, json) {
+	token := ctx.Query("Token")
+
+	if token == _cacheControlMustRevalidateData {
+		return http.StatusNotModified, nil
+	}
+
+	_cacheControlMustRevalidateData = token
+
+	ctx.Header("Cache-Control", "max-age=5, must-revalidate, private")
+	ctx.Header("ETag", token)
+
+	return http.StatusOK, json{
+		"message": "Using the `cache-control` header to ensure cached value is revalidated after value is stale and checks `ETag`. This ensures to revalidate when the client has nextwork after the cache is stale. You can see the `random` value change if `Token` changes.", // Server will clear `Token` after 5 seconds",
+		"token":   token,
+		"random":  getRandomNumber(),
+		"headers": json{
+			"Cache-Control": "max-age=5, must-revalidate, private",
+			"ETag":          token,
 		},
 	}
 }
